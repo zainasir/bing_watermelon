@@ -5,7 +5,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.mygdx.game.screens.FlashScreen;
 
 public class WatermelonGame extends Game {
-	SpriteBatch batch;
+	public SpriteBatch batch;
 
 	@Override
 	public void create() {
