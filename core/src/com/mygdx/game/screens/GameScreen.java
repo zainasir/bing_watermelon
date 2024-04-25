@@ -23,7 +23,7 @@ import java.util.List;
 public class GameScreen implements Screen
 {
     private final WatermelonGame game;
-    private static final float TIME_STEP = 1 / 60f;
+    private static final float TIME_STEP = 1 / 30f;
     private float accumulator = 0;
 
     private OrthographicCamera camera;
@@ -37,7 +37,7 @@ public class GameScreen implements Screen
     public GameScreen(WatermelonGame game)
     {
         this.game = game;
-        world = new World(new Vector2(0, -10), true); // Gravity directed downwards
+        world = new World(new Vector2(0, -150), true); // Gravity directed downwards
         world.setContactListener(new MyContactListener()); // Set the custom contact listener
         camera = new OrthographicCamera();
         debugRenderer = new Box2DDebugRenderer();
