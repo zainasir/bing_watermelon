@@ -1,0 +1,631 @@
+6
+ - Tomatoes
+ - pizza
+ - Sushi
+ - Sandwich
+ - Bearcat
+ - Harvey
+
+
+
+
+
+
+package com.mygdx.game.screens;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.mygdx.game.SurvivorGame;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.PriorityQueue;
+import java.util.Random;
+
+
+public class GameScreen implements Screen {
+    private final SurvivorGame game;
+    private final ShapeRenderer shapeRenderer;
+    private final Player player;
+    private final Array<Enemy> enemies;
+    private final Array<Experience> experiences;
+    private final OrthographicCamera camera;
+    private boolean isPlaying;
+    private Stage stage;
+    private Stage UIstage;
+    private Skin skin;
+    private boolean isTouching = false;
+    private final Vector2 touchPos = new Vector2();
+    private final SpriteBatch batch;
+    private final SpriteBatch uiBatch;
+    private float timeSinceLastSpawn = 4f;
+    private final float spawnInterval = 6f;
+    private BitmapFont font;
+    private final Texture backgroundTexture;
+    private final TextureRegion region;
+    private final float tileWidth;
+    private final float tileHeight;
+    private final InputMultiplexer multiplexer;
+    private Random rand;
+    private boolean isGameover;
+    private Music bgm;
+
+
+    public GameScreen(SurvivorGame game) {
+        isGameover = false;
+        this.game = game;
+        rand = new Random();
+        shapeRenderer = new ShapeRenderer();
+        batch = new SpriteBatch();
+        uiBatch = new SpriteBatch();
+        player = new Player();
+        enemies = new Array<>();
+        experiences = new Array<>();
+
+        bgm = Gdx.audio.newMusic(Gdx.files.internal("bgm.mp3"));
+        bgm.setLooping(true);
+        bgm.setVolume(5.0f);
+        backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
+        backgroundTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        region = new TextureRegion(backgroundTexture);
+        tileWidth = backgroundTexture.getWidth();
+        tileHeight = backgroundTexture.getHeight();
+
+        camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.position.set(camera.viewportWidth / 2f, camera.viewportHeight / 2f, 0);
+        camera.update();
+
+
+        isPlaying = true;
+        stage = new Stage(new ScreenViewport());
+        UIstage = new Stage(new ScreenViewport());
+
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+
+        font = new BitmapFont();
+        font.setColor(Color.WHITE);
+        font.getData().setScale(6);
+
+        initUi();
+
+        Drawable pauseButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("pause.png")));
+        ImageButton pauseButton = new ImageButton(pauseButtonNormal, pauseButtonNormal);
+        float scaleFactor = 0.18f;
+        pauseButton.setSize(pauseButton.getWidth() * scaleFactor, pauseButton.getHeight() * scaleFactor);
+        pauseButton.setPosition(Gdx.graphics.getWidth()- pauseButton.getWidth(), Gdx.graphics.getHeight() - pauseButton.getHeight());
+        pauseButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                System.out.println("Openning Menu!!!");
+                openMenu();
+            }
+        });
+        UIstage.addActor(pauseButton);
+
+
+        multiplexer = new InputMultiplexer();
+        multiplexer.addProcessor(UIstage);
+        multiplexer.addProcessor(createInputProcessor());
+
+
+    }
+
+    private void spawn_enemy(float delta){
+        timeSinceLastSpawn += delta;
+        if (timeSinceLastSpawn >= spawnInterval) {
+            int num_enemy = 15;
+            for (int i = 0; i < num_enemy; i++) {
+                enemies.add(new Enemy(player.position));
+            }
+            timeSinceLastSpawn -= spawnInterval;
+        }
+    }
+
+    private void initUi() {
+        // Gameover popup
+        Drawable ggButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("popup.png")));
+
+        ImageButton ggButton = new ImageButton(ggButtonNormal, ggButtonNormal);
+        ggButton.setSize(1000, 1000);
+
+        ggButton.setPosition(Gdx.graphics.getWidth() / 2f - ggButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - ggButton.getHeight() / 2);
+        ggButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new StartScreen(game));
+                dispose();
+            }
+        });
+        ggButton.setName("8");
+        stage.addActor(ggButton);
+        ggButton.setVisible(false);
+
+        // Left buttons
+        Drawable swordButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("weapon/shuriken.png")));
+
+        ImageButton swordButton = new ImageButton(swordButtonNormal, swordButtonNormal);
+        swordButton.setPosition(Gdx.graphics.getWidth() / 3f - swordButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - swordButton.getHeight() / 2);
+        swordButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                player.guns += 1;
+//                Bullet.setScale(1.4f);
+                resumeGame();
+            }
+        });
+        swordButton.setName("0");
+        stage.addActor(swordButton);
+
+        Drawable fieldButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("weapon/field.png")));
+        ImageButton fieldButton = new ImageButton(fieldButtonNormal, fieldButtonNormal);
+        fieldButton.setPosition(Gdx.graphics.getWidth() / 3f - fieldButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - fieldButton.getHeight() / 2);
+        fieldButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                player.guns += 1;
+                resumeGame();
+
+            }
+        });
+        fieldButton.setName("1");
+        stage.addActor(fieldButton);
+
+        // Right Buttons
+        Drawable spinnerButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("weapon/spinner.png")));
+        ImageButton spinnerButton = new ImageButton(spinnerButtonNormal, spinnerButtonNormal);
+        spinnerButton.setPosition(Gdx.graphics.getWidth() / 3f * 2 - spinnerButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - spinnerButton.getHeight() / 2);
+        spinnerButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                player.addSpinner();
+                resumeGame();
+
+            }
+        });
+        spinnerButton.setName("2");
+        stage.addActor(spinnerButton);
+
+        Drawable shurikenButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("weapon/shuriken.png")));
+        ImageButton shurikenButton = new ImageButton(shurikenButtonNormal, shurikenButtonNormal);
+        shurikenButton.setPosition(Gdx.graphics.getWidth() / 3f * 2 - shurikenButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - shurikenButton.getHeight() / 2);
+        shurikenButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                player.guns += 1;
+                resumeGame();
+
+            }
+        });
+        shurikenButton.setName("3");
+        stage.addActor(shurikenButton);
+
+        Drawable meteorButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("weapon/meteor.png")));
+        ImageButton meteorButton = new ImageButton(meteorButtonNormal, meteorButtonNormal);
+        meteorButton.setPosition(Gdx.graphics.getWidth() / 3f * 2 - meteorButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - meteorButton.getHeight() / 2);
+        meteorButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                player.addMeteor();
+                resumeGame();
+
+            }
+        });
+        meteorButton.setName("4");
+        stage.addActor(meteorButton);
+        // Left
+        fieldButton.setVisible(false);
+        swordButton.setVisible(false);
+        // Right
+        spinnerButton.setVisible(false);
+        shurikenButton.setVisible(false);
+        meteorButton.setVisible(false);
+
+        Drawable resumeButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("resume.png")));
+        ImageButton resumeButton = new ImageButton(resumeButtonNormal, resumeButtonNormal);
+        float scaleFactor = 5.0f;
+        resumeButton.setSize(570, 570);
+        resumeButton.setPosition(Gdx.graphics.getWidth() / 2 - resumeButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - resumeButton.getHeight() / 2 + 250);
+        resumeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                resumeGame();
+
+            }
+        });
+        resumeButton.setName("5");
+        stage.addActor(resumeButton);
+
+        Drawable restartButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("restart.png")));
+        ImageButton restartButton = new ImageButton(restartButtonNormal, restartButtonNormal);
+        restartButton.setSize(restartButton.getWidth() * scaleFactor, restartButton.getHeight() * scaleFactor);
+        restartButton.setPosition(Gdx.graphics.getWidth() / 2 - restartButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - restartButton.getHeight() / 2);
+        restartButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new GameScreen(game));
+            }
+        });
+        restartButton.setName("6");
+        stage.addActor(restartButton);
+
+        Drawable exitButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("exit.png")));
+        ImageButton exitButton = new ImageButton(exitButtonNormal, exitButtonNormal);
+        exitButton.setSize(exitButton.getWidth() * scaleFactor, exitButton.getHeight() * scaleFactor);
+        exitButton.setPosition(Gdx.graphics.getWidth() / 2 - exitButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - exitButton.getHeight() / 2  - 250);
+        exitButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new StartScreen(game));
+                dispose();
+            }
+        });
+        exitButton.setName("7");
+        stage.addActor(exitButton);
+        restartButton.setVisible(false);
+        resumeButton.setVisible(false);
+        exitButton.setVisible(false);
+    }
+
+    @Override
+    public void show() {
+        Gdx.input.setInputProcessor(multiplexer);
+        bgm.play();
+    }
+    public void renderBackground() {
+        // Draw each tile
+        batch.begin();
+        batch.setProjectionMatrix(camera.combined);
+        float x_tile = camera.position.x - camera.position.x % tileWidth;
+        float y_tile = camera.position.y - camera.position.y % tileHeight;
+
+        for (int col = -2; col < 2; col++){
+            for (int row = -4; row < 6; row++){
+                batch.draw(region, x_tile + col * tileWidth, y_tile + row * tileHeight);
+            }
+        }
+        batch.end();
+    }
+
+
+    @Override
+    public void render(float delta) {
+        drawGame();
+
+        if (isPlaying) {
+            handleInput(delta);
+            updateGame(delta);
+        }
+
+
+        if (!isPlaying) {
+            stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
+            stage.draw();
+        }
+        uiBatch.begin();
+        if(isGameover){
+            String scoreText = "Game Over\n"+ "  Score: " + player.exp;
+            font.draw(uiBatch, scoreText, Gdx.graphics.getWidth()/2 - 220, Gdx.graphics.getHeight()/2 + 40);
+        }
+        uiBatch.end();
+    }
+
+    private void updateGame(float delta) {
+        spawn_enemy(delta);
+
+        player.update(delta, enemies);
+        player.updateBullets(delta, enemies);
+        camera.update();
+        player.updateHealth(enemies);
+        Vector2 playerPosition = player.position;
+        for (Enemy enemy : enemies) {
+            enemy.update(delta, playerPosition);
+        }
+
+        if (player.tryShoot()) {
+            Array<Enemy> closestEnemies = findClosestEnemies(player.guns);
+            for(Enemy closeEnemy : closestEnemies){
+                if (closeEnemy != null && closeEnemy.isAlive) {
+                    player.shoot(closeEnemy.position);
+                }
+            }
+        }
+
+        if (player.exp != 0 && (player.exp%10 == 0)) {
+            player.levelUp();
+            pauseGame();
+        }
+        if(player.health <= 0){
+            isGameover = true;
+            openGameover();
+        }
+    }
+    private void handleInput(float delta) {
+        stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
+
+
+        if (isTouching) {
+            Vector2 direction = new Vector2(touchPos).sub(player.position).nor();
+            player.setDirection(direction);
+        }
+        else{
+            player.stopMoving();
+        }
+    }
+
+    private void drawGame() {
+        // Background
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        renderBackground();
+        // camera
+        camera.position.set(player.position.x, player.position.y, 0);
+
+        // Render shapes
+//        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+//        shapeRenderer.setProjectionMatrix(camera.combined);
+//        shapeRenderer.setColor(Color.RED);
+//        shapeRenderer.circle(player.position.x, player.position.y, player.radius);
+        // Bullet
+//        shapeRenderer.end();
+
+        // Render images
+        batch.begin();
+        batch.setProjectionMatrix(camera.combined);
+        player.draw(batch);
+        player.drawBullet(batch);
+        drawEnemies(batch);
+        drawExp(batch);
+        batch.end();
+
+        // Render UI
+        stage.draw();
+        UIstage.draw();
+        uiBatch.begin();
+        String expText = "EXP: " + player.exp + "  Lvl: " + player.level+ "  \nHealth: " + player.health;
+        font.draw(uiBatch, expText, 20, Gdx.graphics.getHeight() - 20);
+//        if(isGameover){
+//            String scoreText = "Game Over\n"+ "Score: " + player.exp;
+//            font.draw(uiBatch, scoreText, Gdx.graphics.getWidth()/2-50, Gdx.graphics.getHeight()/2);
+//        }
+        uiBatch.end();
+
+
+    }
+    private void drawEnemies(SpriteBatch batch){
+        Iterator<Enemy> enemyIter = enemies.iterator();
+        while (enemyIter.hasNext()) {
+            Enemy enemy = enemyIter.next();
+            if (!enemy.isAlive) {
+                experiences.add(new Experience(enemy.position));
+                enemyIter.remove();
+            } else {
+                enemy.draw(batch);
+            }
+        }
+    }
+
+    private void drawExp(SpriteBatch batch) {
+        Iterator<Experience> expIter = experiences.iterator();
+        while (expIter.hasNext()) {
+            Experience exp = expIter.next();
+            if (player.position.dst(exp.position) < player.radius + exp.radius) {
+                exp.isCollected = true;
+                player.exp++;
+                expIter.remove();
+            } else {
+                exp.draw(batch);
+            }
+        }
+    }
+
+    private Array<Enemy> findClosestEnemies(int n) {
+        PriorityQueue<Enemy> pq = new PriorityQueue<>(new Comparator<Enemy>() {
+            @Override
+            public int compare(Enemy e1, Enemy e2) {
+                float dist1 = player.position.dst2(e1.position);
+                float dist2 = player.position.dst2(e2.position);
+                return Float.compare(dist1, dist2);
+            }
+        });
+
+        for (Enemy enemy : enemies) {
+            pq.add(enemy);
+        }
+        Array<Enemy> closestEnemies = new Array<>();
+
+        for (int i = 0; i < n && !pq.isEmpty(); i++) {
+            closestEnemies.add(pq.poll());
+        }
+
+        return closestEnemies;
+    }
+    private void openGameover(){
+        System.out.println("Opened Game Over screen");
+        player.stopMoving();
+        isTouching = false;
+        isPlaying = false;
+        Gdx.input.setInputProcessor(stage);
+        for (Actor actor : stage.getActors()) {
+            int actorIndex = Integer.parseInt(actor.getName());
+            if (actorIndex == 8) {
+                actor.setVisible(true);
+            } else {
+                actor.setVisible(false);
+            }
+        }
+    }
+    private void openMenu(){
+        System.out.println("Opened Menu");
+        player.stopMoving();
+        isTouching = false;
+        isPlaying = false;
+        Gdx.input.setInputProcessor(stage);
+        for (Actor actor : stage.getActors()) {
+            int actorIndex = Integer.parseInt(actor.getName());
+            if (actorIndex == 5 || actorIndex == 6 || actorIndex == 7 || actorIndex == 4|| actorIndex == 2) {
+                actor.setVisible(true);
+            } else {
+                actor.setVisible(false);
+            }
+        }
+    }
+    private void pauseGame() {
+        System.out.println("Paused");
+        player.stopMoving();
+        isTouching = false;
+        isPlaying = false;
+        Gdx.input.setInputProcessor(stage);
+        int leftActor = rand.nextInt(2);
+        int rightActor = rand.nextInt(3) + 2;
+        for (Actor actor : stage.getActors()) {
+            int actorIndex = Integer.parseInt(actor.getName());
+            if (actorIndex == leftActor || actorIndex == rightActor) {
+                actor.setVisible(true);
+            } else {
+                actor.setVisible(false);
+            }
+        }
+    }
+
+    private void resumeGame() {
+        System.out.println("Resumed");
+        player.stopMoving();
+        isTouching = false;
+        isPlaying = true;
+        for (Actor actor : stage.getActors()) {
+            actor.setVisible(false);
+        }
+        Gdx.input.setInputProcessor(multiplexer);
+    }
+
+    private InputProcessor createInputProcessor() {
+        return new InputAdapter() {
+            @Override
+            public boolean keyDown(int keycode) {
+                if (isPlaying) {
+                    switch (keycode) {
+                        case Input.Keys.LEFT:
+                            player.moveLeft();
+                            break;
+                        case Input.Keys.RIGHT:
+                            player.moveRight();
+                            break;
+                        case Input.Keys.UP:
+                            player.moveUp();
+                            break;
+                        case Input.Keys.DOWN:
+                            player.moveDown();
+                            break;
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public boolean keyUp(int keycode) {
+                if (isPlaying) {
+                    switch (keycode) {
+                        case Input.Keys.LEFT:
+                        case Input.Keys.RIGHT:
+                            player.stopMovingX();
+                            break;
+                        case Input.Keys.UP:
+                        case Input.Keys.DOWN:
+                            player.stopMovingY();
+                            break;
+                    }
+                }
+                return true;
+            }
+            @Override
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                isTouching = true;
+                updateTouchPosition(screenX, screenY);
+                return true;
+            }
+
+            @Override
+            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+                isTouching = false;
+                player.stopMoving();
+                return true;
+            }
+
+            @Override
+            public boolean touchDragged(int screenX, int screenY, int pointer) {
+                updateTouchPosition(screenX, screenY);
+                return true;
+            }
+
+            private void updateTouchPosition(int screenX, int screenY) {
+                Vector3 worldCoordinates = camera.unproject(new Vector3(screenX, screenY, 0));
+                touchPos.set(worldCoordinates.x, worldCoordinates.y);
+            }
+        };
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        stage.getViewport().update(width, height, true);
+        camera.viewportWidth = width;
+        camera.viewportHeight = height;
+        camera.update();
+    }
+
+    @Override
+    public void pause() {}
+
+    @Override
+    public void resume() {}
+
+    @Override
+    public void hide() {
+        bgm.stop();
+    }
+
+    @Override
+    public void dispose() {
+        backgroundTexture.dispose();
+
+        bgm.dispose();
+        UIstage.dispose();
+        uiBatch.dispose();
+        font.dispose();
+        for(Enemy enemy : enemies)
+            enemy.dispose();
+        for(Experience exp : experiences)
+            exp.dispose();
+        player.dispose();
+        batch.dispose();
+        shapeRenderer.dispose();
+        stage.dispose();
+        skin.dispose();
+    }
+}
