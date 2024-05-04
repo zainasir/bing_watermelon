@@ -1,0 +1,48 @@
+package com.mygdx.game.screens;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Vector2;
+
+public class Bullet {
+    Vector2 position;
+    Vector2 velocity;
+    float speed = 500;
+    boolean isActive = true;
+    private final Texture texture;
+    private final Sprite sprite;
+    private final float textureWidth;
+    private final float textureHeight;
+    private float rotationAngle = 0;
+    private final float rotationSpeed = 360;
+    private static float scale = 0.22f;
+    public Bullet(Vector2 position, Vector2 direction) {
+        this.position = new Vector2(position);
+        this.velocity = new Vector2(direction).nor().scl(speed);
+        texture = new Texture(Gdx.files.internal("weapon/shuriken.png"));
+        sprite = new Sprite(texture);
+        textureHeight = sprite.getHeight()/2f;
+        textureWidth = sprite.getWidth()/2f;
+        sprite.setScale(scale);
+    }
+    public static void setScale(float scaletgt){
+        scale = scaletgt * scale;
+    }
+    public void update(float delta) {
+
+        rotationAngle += rotationSpeed * delta;
+
+        position.mulAdd(velocity, delta);
+        sprite.setPosition(position.x - textureWidth, position.y - textureHeight);
+        sprite.setRotation(rotationAngle);
+
+    }
+    public void draw(SpriteBatch batch) {
+        sprite.draw(batch);
+    }
+    public void dispose(){texture.dispose();}
+
+
+}

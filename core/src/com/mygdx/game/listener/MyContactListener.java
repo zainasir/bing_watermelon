@@ -27,13 +27,13 @@ public class MyContactListener implements ContactListener {
 
     private void handleCollision(circle circleA, circle circleB)
     {
-        //TODO:Adjust this
-        if (Math.abs(circleA.getSize() - circleB.getSize()) <= 10) {
+        circleA.setTouched();
+        circleB.setTouched();
+        if (circleA.getSize() == circleB.getSize()) {
             circleA.markForRemoval();
             circleB.markForRemoval();
             Vector2 newPosition = circleA.getBody().getPosition();
-            int newSize = circleA.getSize() + circleB.getSize();
-            circleA.setMergeInfo(newPosition, newSize);
+            circleA.setMergeInfo(newPosition);
         }
     }
 

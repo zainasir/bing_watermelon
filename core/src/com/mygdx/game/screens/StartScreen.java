@@ -93,9 +93,12 @@ public class StartScreen implements Screen{
     public void resume() {}
 
     @Override
-    public void hide() {}
+    public void hide() {
+        Gdx.input.setInputProcessor(null);
+    }
     @Override
     public void dispose() {
+
         stage.dispose();
         skin.dispose();
         texture.dispose();
