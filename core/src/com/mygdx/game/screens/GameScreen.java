@@ -4,6 +4,7 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -55,11 +56,30 @@ public class GameScreen implements Screen
     private BitmapFont font;
     private int score;
     private int[] scoreArr = {20, 50, 80, 120, 200, 300, 400};
+
     private InputMultiplexer inputMultiplexer;
+    private int curr;
+    private int next;
+    private Texture texture;
+    private Texture nextTexture;
+    private Sprite sprite;
+    private Sprite nextSprite;
+    private final float[] scaleArr = {0.37f, 0.7f, 0.9f, 1.1f, 1.3f, 1.5f};
+    private float lastDropTime;
+
+    private static final String[] TEXTURE_PATHS = {
+            "Balls/tomatoes.png",  // sizeIdx 0
+            "Balls/pizza.png",     // sizeIdx 1
+            "Balls/sandwich.png",  // sizeIdx 2
+            "Balls/sushi.png",     // sizeIdx 3
+            "Balls/bearcat.png",   // sizeIdx 4
+            "Balls/harvey.png"     // sizeIdx 5
+    };
 
 
     public GameScreen(WatermelonGame game)
     {
+        lastDropTime = 1;
         this.game = game;
         isGameover = false;
         isPaused = false;
@@ -70,6 +90,13 @@ public class GameScreen implements Screen
         font.setColor(Color.WHITE);
         font.getData().setScale(6);
         score = 0;
+        this.curr = MathUtils.random(0, 2);
+        this.next = MathUtils.random(0, 2);
+        this.texture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr])); // Initial texture
+        this.sprite = new Sprite(texture);
+        this.nextTexture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr])); // Initial texture
+        this.nextSprite = new Sprite(nextTexture);
+        updateSpriteTexture();
 
         debugRenderer = new Box2DDebugRenderer();
         shapeRenderer = new ShapeRenderer();
@@ -101,10 +128,22 @@ public class GameScreen implements Screen
         });
         UIstage.addActor(pauseButton);
 
-        //        multiplexer = new InputMultiplexer();
-        //        multiplexer.addProcessor(UIstage);
-        //        multiplexer.addProcessor(createInputProcessor());
     }
+    private void updateSpriteTexture() {
+        if(texture != null)
+            texture.dispose(); // Dispose the old texture to avoid memory leaks
+        if(nextTexture != null)
+            nextTexture.dispose(); // Dispose the old texture to avoid memory leaks
+        texture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr]));
+        nextTexture = new Texture(Gdx.files.internal(TEXTURE_PATHS[next]));
+        sprite.setTexture(texture);
+        nextSprite.setTexture(nextTexture);
+        sprite.setScale(0.4f); // Update scale if needed
+        nextSprite.setScale(0.2f); // Update scale if needed
+        sprite.setOrigin(sprite.getWidth() / 2, sprite.getHeight() / 2); // Re-center the origin
+        nextSprite.setOrigin(sprite.getWidth() / 2, sprite.getHeight() / 2); // Re-center the origin
+    }
+
     private void initUi() {
         // Gameover popup
         Drawable ggButtonNormal = new TextureRegionDrawable(new TextureRegion(new Texture("miscellaneous/popup.png")));
@@ -113,13 +152,6 @@ public class GameScreen implements Screen
         ggButton.setSize(1000, 1000);
 
         ggButton.setPosition(Gdx.graphics.getWidth() / 2f - ggButton.getWidth() / 2, Gdx.graphics.getHeight() / 2f - ggButton.getHeight() / 2 + 100);
-//        ggButton.addListener(new ClickListener() {
-//            @Override
-//            public void clicked(InputEvent event, float x, float y) {
-//                game.setScreen(new StartScreen(game));
-//                dispose();
-//            }
-//        });
         ggButton.setName("8");
         stage.addActor(ggButton);
         ggButton.setVisible(false);
@@ -174,7 +206,7 @@ public class GameScreen implements Screen
     }
 
     private void openGameover(){
-        System.out.println("Opened Game Over screen");
+//        System.out.println("Opened Game Over screen");
         Gdx.input.setInputProcessor(stage);
         for (Actor actor : stage.getActors()) { // Set Game over things
             int actorIndex = Integer.parseInt(actor.getName());
@@ -223,7 +255,7 @@ public class GameScreen implements Screen
                 accumulator -= TIME_STEP;
             }
 
-            handleInput(); // Handle input only if the game is not over
+            handleInput(delta); // Handle input only if the game is not over
             // Check for bodies to remove or merge
             List<circle> newCircles = new ArrayList<>();
             Iterator<circle> iterator = circles.iterator();
@@ -254,6 +286,10 @@ public class GameScreen implements Screen
         checkGameOver();
 
         batch.begin();
+        sprite.setPosition(5, Gdx.graphics.getHeight() - 450);
+        sprite.draw(batch);
+        nextSprite.setPosition(-120, Gdx.graphics.getHeight() - 490);
+        nextSprite.draw(batch);
         font.setColor(1, 1, 1, 1); // Set the color to white
         font.draw(batch, "Score: " + score, 10, Gdx.graphics.getHeight() - 10); // Position the text
 
@@ -313,31 +349,35 @@ public class GameScreen implements Screen
     }
 
 
-    private void handleInput()
+    private void handleInput(float delta)
     {
-        if (Gdx.input.justTouched())
+        if (Gdx.input.justTouched() && (lastDropTime >= 1))
         {
             Vector3 touchPos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
 //            System.out.printf("%f, %f", touchPos.x, touchPos.y);
             camera.unproject(touchPos); // Convert screen coordinates to world coordinates
 
-            Gdx.app.log("Circle", "Circle pos: " + touchPos.x + ", " + touchPos.y);
+//            Gdx.app.log("Circle", "Circle pos: " + touchPos.x + ", " + touchPos.y);
 
             // Create and drop the circle directly at the x position where the screen was touched
             if(touchPos.x < 90 || touchPos.y < 220) {
 
                 float xPosition = touchPos.x;
                 float yPosition = camera.viewportHeight - 40; // Adjust to position correctly at the top
-                int randIdx = MathUtils.random(0, 2);
-                circle newCircle = new circle(world, new Vector2(xPosition, yPosition), randIdx);
+                circle newCircle = new circle(world, new Vector2(xPosition, yPosition), curr);
+                this.curr = this.next;
+                this.next = MathUtils.random(0, 2);
+                updateSpriteTexture();
                 circles.add(newCircle); // Add the new circle immediately to the list
                 score += scoreArr[newCircle.getSize()];
+                lastDropTime = 0;
             }
             else{
                 System.out.println("Opening Menu!!!");
                 openMenu();
             }
         }
+        lastDropTime += delta;
     }
     @Override
     public void resize(int width, int height)
@@ -355,7 +395,7 @@ public class GameScreen implements Screen
         Body groundBody = world.createBody(groundBodyDef);
 
         PolygonShape groundShape = new PolygonShape();
-        groundShape.setAsBox(camera.viewportWidth / 2, 1);
+        groundShape.setAsBox(camera.viewportWidth / 2, 10);
 
         groundBody.createFixture(groundShape, 0.0f);
         groundShape.dispose();
@@ -369,7 +409,7 @@ public class GameScreen implements Screen
         Body leftWall = world.createBody(leftWallDef);
 
         PolygonShape leftWallShape = new PolygonShape();
-        leftWallShape.setAsBox(8, camera.viewportHeight / 2);
+        leftWallShape.setAsBox(10, camera.viewportHeight / 2);
 
         leftWall.createFixture(leftWallShape, 0.0f);
         leftWallShape.dispose();
@@ -381,7 +421,7 @@ public class GameScreen implements Screen
         Body rightWall = world.createBody(rightWallDef);
 
         PolygonShape rightWallShape = new PolygonShape();
-        rightWallShape.setAsBox(8, camera.viewportHeight / 2);
+        rightWallShape.setAsBox(10, camera.viewportHeight / 2);
 
         rightWall.createFixture(rightWallShape, 0.0f);
         rightWallShape.dispose();
