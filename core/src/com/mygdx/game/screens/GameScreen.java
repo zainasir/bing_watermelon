@@ -22,7 +22,6 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
@@ -45,7 +44,6 @@ public class GameScreen implements Screen
     private OrthographicCamera camera;
     private World world;
     private Box2DDebugRenderer debugRenderer;
-    private ShapeRenderer shapeRenderer;
     private List<circle> circles;
     private circle nextCircle;
     private Stage UIstage;
@@ -56,7 +54,6 @@ public class GameScreen implements Screen
     private BitmapFont font;
     private int score;
     private int[] scoreArr = {20, 50, 80, 120, 200, 300, 400};
-
     private InputMultiplexer inputMultiplexer;
     private int curr;
     private int next;
@@ -64,9 +61,7 @@ public class GameScreen implements Screen
     private Texture nextTexture;
     private Sprite sprite;
     private Sprite nextSprite;
-    private final float[] scaleArr = {0.37f, 0.7f, 0.9f, 1.1f, 1.3f, 1.5f};
     private float lastDropTime;
-
     private static final String[] TEXTURE_PATHS = {
             "Balls/tomatoes.png",  // sizeIdx 0
             "Balls/pizza.png",     // sizeIdx 1
@@ -86,20 +81,19 @@ public class GameScreen implements Screen
         world = new World(new Vector2(0, -150), true); // Gravity directed downwards
         world.setContactListener(new MyContactListener()); // Set the custom contact listener
         camera = new OrthographicCamera();
-        font = new BitmapFont(); // Use LibGDX's default font
+        font = new BitmapFont();
         font.setColor(Color.WHITE);
         font.getData().setScale(6);
         score = 0;
         this.curr = MathUtils.random(0, 2);
         this.next = MathUtils.random(0, 2);
-        this.texture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr])); // Initial texture
+        this.texture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr]));
         this.sprite = new Sprite(texture);
-        this.nextTexture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr])); // Initial texture
+        this.nextTexture = new Texture(Gdx.files.internal(TEXTURE_PATHS[next]));
         this.nextSprite = new Sprite(nextTexture);
         updateSpriteTexture();
 
         debugRenderer = new Box2DDebugRenderer();
-        shapeRenderer = new ShapeRenderer();
         circles = new ArrayList<>();
         camera.setToOrtho(false, Gdx.graphics.getWidth() / 10f, Gdx.graphics.getHeight() / 10f); // Setup camera with a suitable viewport
         camera.update();
@@ -123,7 +117,7 @@ public class GameScreen implements Screen
             public void clicked(InputEvent event, float x, float y) {
                 System.out.println("Openning Menu!!!");
                 openMenu();
-                event.handle(); // Marks this event as handled
+                event.handle();
             }
         });
         UIstage.addActor(pauseButton);
@@ -131,9 +125,9 @@ public class GameScreen implements Screen
     }
     private void updateSpriteTexture() {
         if(texture != null)
-            texture.dispose(); // Dispose the old texture to avoid memory leaks
+            texture.dispose();
         if(nextTexture != null)
-            nextTexture.dispose(); // Dispose the old texture to avoid memory leaks
+            nextTexture.dispose();
         texture = new Texture(Gdx.files.internal(TEXTURE_PATHS[curr]));
         nextTexture = new Texture(Gdx.files.internal(TEXTURE_PATHS[next]));
         sprite.setTexture(texture);
@@ -206,7 +200,6 @@ public class GameScreen implements Screen
     }
 
     private void openGameover(){
-//        System.out.println("Opened Game Over screen");
         Gdx.input.setInputProcessor(stage);
         for (Actor actor : stage.getActors()) { // Set Game over things
             int actorIndex = Integer.parseInt(actor.getName());
@@ -251,11 +244,11 @@ public class GameScreen implements Screen
             accumulator += Math.min(delta, 0.25); // Cap delta
 
             while (accumulator >= TIME_STEP) {
-                world.step(TIME_STEP, 6, 2); // Use fixed time step
+                world.step(TIME_STEP, 6, 2);
                 accumulator -= TIME_STEP;
             }
 
-            handleInput(delta); // Handle input only if the game is not over
+            handleInput(delta);
             // Check for bodies to remove or merge
             List<circle> newCircles = new ArrayList<>();
             Iterator<circle> iterator = circles.iterator();
@@ -276,7 +269,6 @@ public class GameScreen implements Screen
 
         camera.update();
         game.batch.setProjectionMatrix(camera.combined);
-        shapeRenderer.setProjectionMatrix(camera.combined);
 
         renderShapes();
         UIstage.draw();
@@ -290,9 +282,8 @@ public class GameScreen implements Screen
         sprite.draw(batch);
         nextSprite.setPosition(-120, Gdx.graphics.getHeight() - 490);
         nextSprite.draw(batch);
-        font.setColor(1, 1, 1, 1); // Set the color to white
-        font.draw(batch, "Score: " + score, 10, Gdx.graphics.getHeight() - 10); // Position the text
-
+        font.setColor(1, 1, 1, 1);
+        font.draw(batch, "Score: " + score, 10, Gdx.graphics.getHeight() - 10);
         if(isGameover){
             // Save current score to leaderboard
             Preferences preferences = Gdx.app.getPreferences("High Score Storage");
@@ -316,32 +307,19 @@ public class GameScreen implements Screen
             if(c.getTouched() && c.getHeight() > maxHeight)
                 maxHeight = c.getHeight();
         }
-//        Gdx.app.log("Height", "Current max:" + maxHeight);
-
         if(maxHeight >= 200.0f){
             isGameover = true;
         }
     }
 
     private void renderShapes() {
-        // Start and end SpriteBatch session
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        // Start and end ShapeRenderer session
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (circle circle : circles) {
-            circle.drawShape(shapeRenderer); // Assuming drawShape() handles shape drawing
-        }
-        if (nextCircle != null) {
-            nextCircle.drawShape(shapeRenderer); // Draw the shape for the next circle
-        }
-        shapeRenderer.end();
         batch.begin();
         for (circle circle : circles) {
-            circle.drawSprite(batch); // Assuming drawSprite() handles sprite drawing
+            circle.drawSprite(batch);
         }
         if (nextCircle != null) {
-            nextCircle.drawSprite(batch); // Draw the sprite for the next circle
+            nextCircle.drawSprite(batch);
         }
         batch.end();
         debugRenderer.render(world, camera.combined);
@@ -354,21 +332,15 @@ public class GameScreen implements Screen
         if (Gdx.input.justTouched() && (lastDropTime >= 1))
         {
             Vector3 touchPos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
-//            System.out.printf("%f, %f", touchPos.x, touchPos.y);
-            camera.unproject(touchPos); // Convert screen coordinates to world coordinates
-
-//            Gdx.app.log("Circle", "Circle pos: " + touchPos.x + ", " + touchPos.y);
-
-            // Create and drop the circle directly at the x position where the screen was touched
+            camera.unproject(touchPos);
             if(touchPos.x < 90 || touchPos.y < 220) {
-
                 float xPosition = touchPos.x;
-                float yPosition = camera.viewportHeight - 40; // Adjust to position correctly at the top
+                float yPosition = camera.viewportHeight - 40;
                 circle newCircle = new circle(world, new Vector2(xPosition, yPosition), curr);
                 this.curr = this.next;
                 this.next = MathUtils.random(0, 2);
                 updateSpriteTexture();
-                circles.add(newCircle); // Add the new circle immediately to the list
+                circles.add(newCircle);
                 score += scoreArr[newCircle.getSize()];
                 lastDropTime = 0;
             }
@@ -391,7 +363,6 @@ public class GameScreen implements Screen
         BodyDef groundBodyDef = new BodyDef();
         groundBodyDef.type = BodyDef.BodyType.StaticBody;
         groundBodyDef.position.set(camera.viewportWidth / 2, 1);
-
         Body groundBody = world.createBody(groundBodyDef);
 
         PolygonShape groundShape = new PolygonShape();
@@ -463,6 +434,5 @@ public class GameScreen implements Screen
         font.dispose();
         batch.dispose();
         debugRenderer.dispose();
-        shapeRenderer.dispose();
     }
 }

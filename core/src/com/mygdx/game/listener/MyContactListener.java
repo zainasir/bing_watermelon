@@ -15,8 +15,6 @@ public class MyContactListener implements ContactListener {
     {
         Fixture fixtureA = contact.getFixtureA();
         Fixture fixtureB = contact.getFixtureB();
-
-        // Extract the circle objects from the user data of the body
         circle circleA = (circle) fixtureA.getBody().getUserData();
         circle circleB = (circle) fixtureB.getBody().getUserData();
 
@@ -39,16 +37,13 @@ public class MyContactListener implements ContactListener {
 
     @Override
     public void endContact(Contact contact) {
-        // Implement logic for when contact ends, if needed
     }
 
     @Override
     public void preSolve(Contact contact, Manifold oldManifold) {
-        // Implement pre-solve contact conditions, if needed
     }
 
     @Override
     public void postSolve(Contact contact, ContactImpulse impulse) {
-        // Implement post-solve contact conditions, if needed
     }
 }
