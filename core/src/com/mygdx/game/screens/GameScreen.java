@@ -1,6 +1,7 @@
 package com.mygdx.game.screens;
 
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -257,9 +258,19 @@ public class GameScreen implements Screen
         font.draw(batch, "Score: " + score, 10, Gdx.graphics.getHeight() - 10); // Position the text
 
         if(isGameover){
+            // Save current score to leaderboard
+            Preferences preferences = Gdx.app.getPreferences("High Score Storage");
+            long prevHighScore = preferences.getLong("highScore", -1);
+
+            if (score > prevHighScore) {
+                preferences.putLong("highScore", score);
+                preferences.flush();
+            }
+
             openGameover();
-            String scoreText = "Game Over\n"+ " Score: " + score;
-            font.draw(batch, scoreText, Gdx.graphics.getWidth()/2-220, Gdx.graphics.getHeight()/2+100);
+            String scoreText = "Game Over\n"+ "Score: " + score + "\nHigh Score: " + prevHighScore;
+            font.getData().setScale(5.0f);
+            font.draw(batch, scoreText, Gdx.graphics.getWidth()/2-250, Gdx.graphics.getHeight()/2+150);
         }
         batch.end();
     }
@@ -323,7 +334,7 @@ public class GameScreen implements Screen
                 score += scoreArr[newCircle.getSize()];
             }
             else{
-                System.out.println("Openning Menu!!!");
+                System.out.println("Opening Menu!!!");
                 openMenu();
             }
         }
